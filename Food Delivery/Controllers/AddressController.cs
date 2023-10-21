@@ -1,5 +1,4 @@
-﻿using Food_Delivery.Models.Dto;
-using Food_Delivery.Services;
+﻿using Food_Delivery.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Food_Delivery.Controllers;
@@ -17,8 +16,15 @@ public class AddressController : ControllerBase
 
     [HttpGet]
     [Route("/api/address/getaddresschain")]
-    public string? GetAddressChain(Guid objectGuid)
+    public IActionResult GetAddressChain(Guid objectGuid)
     {
-        return _service.GetAddressChain(objectGuid: objectGuid)?.name;
+        try
+        {
+            return Ok(_service.GetAddressChain(objectGuid));
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500);
+        }
     }
 }

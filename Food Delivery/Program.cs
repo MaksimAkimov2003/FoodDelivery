@@ -1,12 +1,13 @@
 using System.Text.Json.Serialization;
-using Food_Delivery;
+using Food_Delivery.Common.db;
 using Food_Delivery.Services;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers().AddJsonOptions(opts => {
+builder.Services.AddControllers().AddJsonOptions(opts =>
+{
     var enumConverter = new JsonStringEnumConverter();
     opts.JsonSerializerOptions.Converters.Add(enumConverter);
 });

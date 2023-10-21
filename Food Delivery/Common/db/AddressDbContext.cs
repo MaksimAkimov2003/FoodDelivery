@@ -1,7 +1,7 @@
 ﻿using Food_Delivery.Models.Entity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Food_Delivery;
+namespace Food_Delivery.Common.db;
 
 public class AddressDbContext : DbContext
 {
@@ -9,9 +9,11 @@ public class AddressDbContext : DbContext
     {
         Database.EnsureCreated();
     }
-    
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AddressObjectEntity>().HasNoKey();
+        modelBuilder.Entity<AdministrativeHierarchyEntity>().HasNoKey();
+        modelBuilder.Entity<HouseEntity>().HasNoKey();
     }
 }
