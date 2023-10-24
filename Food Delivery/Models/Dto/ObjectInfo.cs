@@ -14,7 +14,7 @@ public abstract class ObjectInfo
 
     public class House : ObjectInfo
     {
-        public string HouseNum { get; set; }
+        public string? HouseNum { get; set; }
         public string? AddNum1 { get; set; }
         public string? AddNum2 { get; set; }
     }

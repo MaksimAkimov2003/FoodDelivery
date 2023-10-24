@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using Food_Delivery.Common;
 using Food_Delivery.Common.db;
 using Food_Delivery.Models.Dto;
 using Food_Delivery.Models.Entity;
@@ -15,6 +16,52 @@ public class AddressService : IAddressService
     public AddressService(AddressDbContext context)
     {
         _context = context;
+    }
+
+    public List<SearchAddressDto> SearchAddress
+    (
+        long parentObjectId,
+        string query
+    )
+    {
+        var administrativeHierarchyIds = _context.Set<AdministrativeHierarchyEntity>()
+            .Where(ah => ah.parentobjid == parentObjectId)
+            .Select(ah => new { ah.objectid })
+            .ToList();
+
+        var addressResults = _context.Set<AddressObjectEntity>()
+            .Where(a => a.name.Contains(query) && administrativeHierarchyIds
+                .Any(ah => ah.objectid == a.objectid))
+            .Take(10)
+            .ToList();
+
+        if (!addressResults.IsNullOrEmpty())
+        {
+            return addressResults.Select(addressEntity => new SearchAddressDto
+            {
+                ObjectId = addressEntity.objectid,
+                ObjectGuid = addressEntity.objectguid,
+                Text = addressEntity.typename + " " + addressEntity.name,
+                ObjectLevel = FindLevelByLevelNumber(int.Parse(addressEntity.level) - 1),
+                ObjectLevelText = Utils.GetEnumDescription(FindLevelByLevelNumber(int.Parse(addressEntity.level) - 1))
+            }).ToList();
+        }
+
+
+        var houseResults = _context.Set<HouseEntity>()
+            .Where(h => h.housenum.Contains(query) &&
+                        administrativeHierarchyIds.Any(ah => ah.objectid == h.objectid))
+            .Take(10)
+            .ToList();
+
+        return houseResults.Select(houseEntity => new SearchAddressDto
+        {
+            ObjectId = houseEntity.objectid,
+            ObjectGuid = houseEntity.objectguid,
+            Text = houseEntity.,
+            ObjectLevel = GarAddressLevel.House,
+            ObjectLevelText = GarAddressLevel.House.ToString()
+        }).ToList();
     }
 
     public List<SearchAddressDto> GetAddressChain(Guid objectGuid)
@@ -121,13 +168,15 @@ public class AddressService : IAddressService
     )
     {
         var resultList = FetchParentObjects(parentsIdList: parentsIdList);
+        var objectLevel = FindLevelByLevelNumber(int.Parse(addressObject.Level) - 1);
 
         SearchAddressDto addressInfo = new SearchAddressDto
         {
             ObjectGuid = addressObject.Guid,
             ObjectId = addressObject.Id,
-            ObjectLevel = FindLevelByLevelNumber(int.Parse(addressObject.Level) - 1),
-            Text = addressObject.TypeName + " " + addressObject.Name
+            ObjectLevel = objectLevel,
+            Text = addressObject.TypeName + " " + addressObject.Name,
+            ObjectLevelText = Utils.GetEnumDescription(objectLevel)
         };
 
         resultList.Add(addressInfo);
@@ -148,7 +197,12 @@ public class AddressService : IAddressService
     {
         var resultList = FetchParentObjects(parentsIdList: parentsIdList);
 
-        var text = house.HouseNum;
+        string text = "";
+
+        if (house.HouseNum != null)
+        {
+            text += house.HouseNum;
+        }
 
         if ((house.AddNum1 != null) && (Regex.IsMatch(house.AddNum1, "^[0-9]+$")))
         {
@@ -165,7 +219,8 @@ public class AddressService : IAddressService
             ObjectGuid = house.Guid,
             ObjectId = house.Id,
             ObjectLevel = GarAddressLevel.Building,
-            Text = text
+            Text = text,
+            ObjectLevelText = Utils.GetEnumDescription(GarAddressLevel.Building)
         };
 
         resultList.Add(houseInfo);
@@ -194,12 +249,15 @@ public class AddressService : IAddressService
                 .FromSqlRaw("SELECT * FROM fias.as_addr_obj WHERE objectid=@objectid", objectIdParam)
                 .FirstOrDefault();
 
+            var objectLevel = FindLevelByLevelNumber(int.Parse(addressObjectEntity.level) - 1);
+
             SearchAddressDto searchAddressDto = new SearchAddressDto
             {
                 ObjectId = addressObjectEntity!.id,
                 ObjectGuid = addressObjectEntity.objectguid,
-                ObjectLevel = FindLevelByLevelNumber(int.Parse(addressObjectEntity.level) - 1),
-                Text = addressObjectEntity.typename + " " + addressObjectEntity.name
+                ObjectLevel = objectLevel,
+                Text = addressObjectEntity.typename + " " + addressObjectEntity.name,
+                ObjectLevelText = Utils.GetEnumDescription(objectLevel)
             };
 
             resultList.Add(searchAddressDto);

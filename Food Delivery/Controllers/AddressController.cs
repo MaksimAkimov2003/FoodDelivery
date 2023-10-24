@@ -15,6 +15,24 @@ public class AddressController : ControllerBase
     }
 
     [HttpGet]
+    [Route("api/address/search")]
+    public IActionResult SearchAddress
+    (
+        long? parentObjectId,
+        string? query
+    )
+    {
+        try
+        {
+            return Ok(_service.SearchAddress(parentObjectId: parentObjectId ?? 0, query: query ?? ""));
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, "Object wasn't found");
+        }
+    }
+
+    [HttpGet]
     [Route("/api/address/getaddresschain")]
     public IActionResult GetAddressChain(Guid objectGuid)
     {
