@@ -24,44 +24,46 @@ public class AddressService : IAddressService
         string query
     )
     {
-        var administrativeHierarchyIds = _context.Set<AdministrativeHierarchyEntity>()
-            .Where(ah => ah.parentobjid == parentObjectId)
-            .Select(ah => new { ah.objectid })
-            .ToList();
+        var parentIdParam = new NpgsqlParameter("parentObjId", parentObjectId);
+        var queryParameter = new NpgsqlParameter("@query", "%" + query + "%");
 
-        var addressResults = _context.Set<AddressObjectEntity>()
-            .Where(a => a.name.Contains(query) && administrativeHierarchyIds
-                .Any(ah => ah.objectid == a.objectid))
+        var addressObjects = _context.Set<AddressObjectEntity>()
+            .FromSqlRaw("SELECT ao.* FROM fias.as_addr_obj as ao " +
+                        "INNER JOIN fias.as_adm_hierarchy AS ah ON ao.objectid = ah.objectid " +
+                        "WHERE ah.parentobjid=@parentObjId AND ao.name LIKE @query", parentIdParam, queryParameter)
             .Take(10)
-            .ToList();
-
-        if (!addressResults.IsNullOrEmpty())
-        {
-            return addressResults.Select(addressEntity => new SearchAddressDto
+            .Select(addressObject => new SearchAddressDto
             {
-                ObjectId = addressEntity.objectid,
-                ObjectGuid = addressEntity.objectguid,
-                Text = addressEntity.typename + " " + addressEntity.name,
-                ObjectLevel = FindLevelByLevelNumber(int.Parse(addressEntity.level) - 1),
-                ObjectLevelText = Utils.GetEnumDescription(FindLevelByLevelNumber(int.Parse(addressEntity.level) - 1))
-            }).ToList();
-        }
-
-
-        var houseResults = _context.Set<HouseEntity>()
-            .Where(h => h.housenum.Contains(query) &&
-                        administrativeHierarchyIds.Any(ah => ah.objectid == h.objectid))
-            .Take(10)
+                ObjectGuid = addressObject.objectguid,
+                ObjectId = addressObject.objectid,
+                ObjectLevel = FindLevelByLevelNumber(int.Parse(addressObject.level) - 1),
+                ObjectLevelText = Utils.GetEnumDescription(FindLevelByLevelNumber(int.Parse(addressObject.level) - 1)),
+                Text = addressObject.typename + " " + addressObject.name
+            })
             .ToList();
 
-        return houseResults.Select(houseEntity => new SearchAddressDto
-        {
-            ObjectId = houseEntity.objectid,
-            ObjectGuid = houseEntity.objectguid,
-            Text = houseEntity.,
-            ObjectLevel = GarAddressLevel.House,
-            ObjectLevelText = GarAddressLevel.House.ToString()
-        }).ToList();
+        if (!addressObjects.IsNullOrEmpty()) return addressObjects;
+
+
+        var housesObjects = _context.Set<HouseEntity>()
+            .FromSqlRaw("SELECT ao.* FROM fias.as_houses as ao " +
+                        "INNER JOIN fias.as_adm_hierarchy AS ah ON ao.objectid = ah.objectid " +
+                        "WHERE ah.parentobjid=@parentObjId AND ao.housenum LIKE @query", parentIdParam, queryParameter)
+            .Take(10)
+            .Select(house => new SearchAddressDto
+            {
+                ObjectGuid = house.objectguid,
+                ObjectId = house.objectid,
+                ObjectLevel = GarAddressLevel.Building,
+                ObjectLevelText = Utils.GetEnumDescription(GarAddressLevel.Building),
+                Text = GetHouseText(house.housenum, house.addnum1, house.addnum2)
+            })
+            .Distinct()
+            .ToList();
+
+        if (housesObjects.IsNullOrEmpty()) throw new ArgumentNullException();
+
+        return housesObjects;
     }
 
     public List<SearchAddressDto> GetAddressChain(Guid objectGuid)
@@ -92,8 +94,34 @@ public class AddressService : IAddressService
             );
         }
 
-
         throw new NotImplementedException();
+    }
+
+    private static string GetHouseText
+    (
+        string? houseNum,
+        string? addNum1,
+        string? addNum2
+    )
+    {
+        string text = "";
+
+        if (houseNum != null)
+        {
+            text += houseNum;
+        }
+
+        if ((addNum1 != null) && (Regex.IsMatch(addNum1, "^[0-9]+$")))
+        {
+            text += " стр. " + addNum1;
+        }
+
+        if ((addNum2 != null) && (Regex.IsMatch(addNum2, "^[0-9]+$")))
+        {
+            text += " соор. " + addNum2;
+        }
+
+        return text;
     }
 
     private ObjectInfo GetObjectInfo(Guid objectGuid)
@@ -149,7 +177,7 @@ public class AddressService : IAddressService
         return path.Split('.').Select(long.Parse).ToList();
     }
 
-    private GarAddressLevel FindLevelByLevelNumber(int number)
+    private static GarAddressLevel FindLevelByLevelNumber(int number)
     {
         foreach (GarAddressLevel level in Enum.GetValues(typeof(GarAddressLevel)))
         {
