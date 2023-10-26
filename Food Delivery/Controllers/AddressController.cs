@@ -1,4 +1,5 @@
-﻿using Food_Delivery.Services;
+﻿using Food_Delivery.Common;
+using Food_Delivery.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Food_Delivery.Controllers;
@@ -28,7 +29,7 @@ public class AddressController : ControllerBase
         }
         catch (Exception e)
         {
-            return StatusCode(500, "Object wasn't found");
+            return StatusCode(500, new StatusResponse { Message = "object wasn't found" });
         }
     }
 
