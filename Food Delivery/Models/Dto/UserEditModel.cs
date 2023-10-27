@@ -10,7 +10,7 @@ public class UserEditModel
 
     [Required] public string Gender { get; set; }
 
-    public string? Address { get; set; }
+    public Guid Address { get; set; }
 
     [Phone] public string? PhoneNumber { get; set; }
 }

@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Food_Delivery.Common;
 using Food_Delivery.Common.db;
 using Food_Delivery.Services;
+using Food_Delivery.Services.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -22,9 +23,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connection = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<AddressDbContext>(options => options.UseNpgsql(connection));
+var address = builder.Configuration.GetConnectionString("DefaultConnection");
+var mainConnection = builder.Configuration.GetConnectionString("WebConnection");
+builder.Services.AddDbContext<AddressDbContext>(options => options.UseNpgsql(address));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(mainConnection));
 builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IUsersService, UsersService>();
 
 var logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)

@@ -12,7 +12,7 @@ public class UserDto
 
     [Required] public string Gender { get; set; }
 
-    public string? Address { get; set; }
+    public Guid Address { get; set; }
 
     [MinLength(1)] [EmailAddress] public string? Email { get; set; }
 

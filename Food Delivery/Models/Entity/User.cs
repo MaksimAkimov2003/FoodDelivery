@@ -19,7 +19,7 @@ public class User
     [EmailAddress]
     public string Email { get; set; }
 
-    public string? Address { get; set; }
+    public Guid Address { get; set; }
 
     [Required] [MinLength(6)] public string Password { get; set; }
 

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Food_Delivery.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/address/")]
 public class AddressController : ControllerBase
 {
     private readonly IAddressService _service;
@@ -16,7 +16,7 @@ public class AddressController : ControllerBase
     }
 
     [HttpGet]
-    [Route("api/address/search")]
+    [Route("search")]
     public IActionResult SearchAddress
     (
         long? parentObjectId,
@@ -34,7 +34,7 @@ public class AddressController : ControllerBase
     }
 
     [HttpGet]
-    [Route("/api/address/getaddresschain")]
+    [Route("getaddresschain")]
     public IActionResult GetAddressChain(Guid objectGuid)
     {
         try

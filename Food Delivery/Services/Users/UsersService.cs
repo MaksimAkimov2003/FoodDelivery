@@ -7,20 +7,24 @@ using Food_Delivery.Models.Dto;
 using Food_Delivery.Models.Entity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 
 namespace Food_Delivery.Services.Users;
 
 public class UsersService : IUsersService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly AddressDbContext _addressDbContext;
+    private readonly ApplicationDbContext _applicationDbContext;
 
-    public UsersService(ApplicationDbContext context)
+    public UsersService(ApplicationDbContext applicationDbContext, AddressDbContext addressDbContext)
     {
-        _context = context;
+        _applicationDbContext = applicationDbContext;
+        _addressDbContext = addressDbContext;
     }
 
     public async Task<TokenResponse> RegisterUser(UserRegisterModel userRegisterModel)
     {
+        CheckPassword(userRegisterModel.Password);
         userRegisterModel.Email = NormalizeAttribute(userRegisterModel.Email);
 
         await UniqueCheck(userRegisterModel);
@@ -36,8 +40,9 @@ public class UsersService : IUsersService
 
         CheckGender(userRegisterModel.Gender);
         CheckBirthDate(userRegisterModel.BirthDate);
+        CheckAddress(houseGuid: userRegisterModel.Address);
 
-        await _context.Users.AddAsync(new User
+        await _applicationDbContext.Users.AddAsync(new User
         {
             Id = Guid.NewGuid(),
             FullName = userRegisterModel.FullName,
@@ -48,7 +53,7 @@ public class UsersService : IUsersService
             Password = savedPasswordHash,
             PhoneNumber = userRegisterModel.PhoneNumber,
         });
-        await _context.SaveChangesAsync();
+        await _applicationDbContext.SaveChangesAsync();
 
         var credentials = new LoginCredentials
         {
@@ -88,28 +93,25 @@ public class UsersService : IUsersService
 
     public async Task Logout(string token)
     {
-        var alreadyExistsToken = await _context.Tokens.FirstOrDefaultAsync(x => x.InvalidToken == token);
+        var alreadyExistsToken = await _applicationDbContext.Tokens.FirstOrDefaultAsync(x => x.InvalidToken == token);
 
         if (alreadyExistsToken == null)
         {
             var handler = new JwtSecurityTokenHandler();
             var expiredDate = handler.ReadJwtToken(token).ValidTo;
-            _context.Tokens.Add(new Token { InvalidToken = token, ExpiredDate = expiredDate });
-            await _context.SaveChangesAsync();
+            _applicationDbContext.Tokens.Add(new Token { InvalidToken = token, ExpiredDate = expiredDate });
+            await _applicationDbContext.SaveChangesAsync();
         }
         else
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                "Token is already invalid"
-            );
+            var ex = new Exception("Token is already invalid");
             throw ex;
         }
     }
 
     public async Task<UserDto> GetUserProfile(Guid userId)
     {
-        var userEntity = await _context
+        var userEntity = await _applicationDbContext
             .Users
             .FirstOrDefaultAsync(x => x.Id == userId);
 
@@ -125,28 +127,23 @@ public class UsersService : IUsersService
                 PhoneNumber = userEntity.PhoneNumber
             };
 
-        var ex = new Exception();
-        ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-            "User not exists"
-        );
+        var ex = new Exception("User not exists");
         throw ex;
     }
 
     public async Task EditUserProfile(Guid userId, UserEditModel userEditModel)
     {
-        var userEntity = await _context
+        var userEntity = await _applicationDbContext
             .Users
             .FirstOrDefaultAsync(x => x.Id == userId);
 
         if (userEntity == null)
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                "User not exists"
-            );
+            var ex = new Exception("User not exists");
             throw ex;
         }
 
+        CheckAddress(userEditModel.Address);
         CheckGender(userEditModel.Gender);
         CheckBirthDate(userEditModel.BirthDate);
 
@@ -156,30 +153,24 @@ public class UsersService : IUsersService
         userEntity.Gender = userEditModel.Gender;
         userEntity.PhoneNumber = userEditModel.PhoneNumber;
 
-        await _context.SaveChangesAsync();
+        await _applicationDbContext.SaveChangesAsync();
     }
 
     private async Task<ClaimsIdentity> GetIdentity(string email, string password)
     {
-        var userEntity = await _context
+        var userEntity = await _applicationDbContext
             .Users
             .FirstOrDefaultAsync(x => x.Email == email);
 
         if (userEntity == null)
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                "User not exists"
-            );
+            var ex = new Exception("User not exists");
             throw ex;
         }
 
         if (!CheckHashPassword(userEntity.Password, password))
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                "Wrong password"
-            );
+            var ex = new Exception("Wrong password");
             throw ex;
         }
 
@@ -219,18 +210,42 @@ public class UsersService : IUsersService
 
     private async Task UniqueCheck(UserRegisterModel userRegisterModel)
     {
-        var email = await _context
+        var email = await _applicationDbContext
             .Users
             .Where(x => userRegisterModel.Email == x.Email)
             .FirstOrDefaultAsync();
 
         if (email != null)
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status409Conflict.ToString(),
-                $"Account with email '{userRegisterModel.Email}' already exists"
-            );
+            var ex = new Exception($"Account with email '{userRegisterModel.Email}' already exists");
             throw ex;
+        }
+    }
+
+    private void CheckPassword(String password)
+    {
+        if (password.Length < 8)
+        {
+            throw new Exception("Password lenght should be >= 8 symbols");
+        }
+
+        if (!password.Any(Char.IsDigit))
+        {
+            throw new Exception("Password should contain digits");
+        }
+    }
+
+    private void CheckAddress(Guid houseGuid)
+    {
+        var objectGuidParam = new NpgsqlParameter("objectGuid", houseGuid);
+
+        var houseEntity = _addressDbContext.Set<HouseEntity>()
+            .FromSqlRaw("SELECT * FROM fias.as_houses WHERE objectguid=@objectGuid", objectGuidParam)
+            .FirstOrDefault();
+
+        if (houseEntity == null)
+        {
+            throw new Exception("House guid expected in address field");
         }
     }
 
@@ -238,9 +253,7 @@ public class UsersService : IUsersService
     {
         if (gender == Gender.Male.ToString() || gender == Gender.Female.ToString()) return;
 
-        var ex = new Exception();
-        ex.Data.Add(StatusCodes.Status409Conflict.ToString(),
-            $"Possible Gender values: {Gender.Male.ToString()}, {Gender.Female.ToString()}");
+        var ex = new Exception($"Possible Gender values: {Gender.Male.ToString()}, {Gender.Female.ToString()}");
         throw ex;
     }
 
@@ -248,9 +261,7 @@ public class UsersService : IUsersService
     {
         if (birthDate == null || birthDate <= DateTime.Now) return;
 
-        var ex = new Exception();
-        ex.Data.Add(StatusCodes.Status409Conflict.ToString(),
-            "Birth date can't be later than today");
+        var ex = new Exception("Birth date can't be later than today");
         throw ex;
     }
 }

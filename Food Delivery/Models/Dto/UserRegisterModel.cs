@@ -13,7 +13,7 @@ public class UserRegisterModel
     [EmailAddress]
     public string Email { get; set; }
 
-    public string? Address { get; set; }
+    public Guid Address { get; set; }
     public DateTime? BirthDate { get; set; }
 
     [Required] public string Gender { get; set; }
