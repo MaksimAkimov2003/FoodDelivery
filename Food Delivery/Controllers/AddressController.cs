@@ -1,10 +1,11 @@
-﻿using Food_Delivery.Services;
+﻿using Food_Delivery.Common;
+using Food_Delivery.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Food_Delivery.Controllers;
 
 [ApiController]
-[Route("[controller]")]
+[Route("api/address/")]
 public class AddressController : ControllerBase
 {
     private readonly IAddressService _service;
@@ -15,7 +16,7 @@ public class AddressController : ControllerBase
     }
 
     [HttpGet]
-    [Route("api/address/search")]
+    [Route("search")]
     public IActionResult SearchAddress
     (
         long? parentObjectId,
@@ -28,12 +29,12 @@ public class AddressController : ControllerBase
         }
         catch (Exception e)
         {
-            return StatusCode(500, "Object wasn't found");
+            return StatusCode(500, new StatusResponse { Message = "object wasn't found" });
         }
     }
 
     [HttpGet]
-    [Route("/api/address/getaddresschain")]
+    [Route("getaddresschain")]
     public IActionResult GetAddressChain(Guid objectGuid)
     {
         try
