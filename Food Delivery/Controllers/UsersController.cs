@@ -87,7 +87,19 @@ public class UsersController : ControllerBase
     [SwaggerOperation(Summary = "Edit user Profile")]
     public async Task EditUserProfile([FromBody] UserEditModel userEditModel)
     {
-        await _usersService.EditUserProfile(
-            Guid.Parse(User.Identity.Name), userEditModel);
+        try
+        {
+            await _usersService.EditUserProfile(
+                Guid.Parse(User.Identity.Name), userEditModel);
+        }
+        catch (AuthException e)
+        {
+            Unauthorized(new StatusResponse { Message = e.Message });
+        }
+
+        catch (Exception e)
+        {
+            BadRequest(new StatusResponse { Message = e.Message });
+        }
     }
 }

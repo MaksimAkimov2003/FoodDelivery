@@ -4,6 +4,7 @@ using Food_Delivery.Common.db;
 using Food_Delivery.Services;
 using Food_Delivery.Services.Basket;
 using Food_Delivery.Services.Dish;
+using Food_Delivery.Services.Order;
 using Food_Delivery.Services.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -33,6 +34,7 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IUsersService, UsersService>();
 builder.Services.AddScoped<IDishService, DishService>();
 builder.Services.AddScoped<IBasketService, BasketService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 var logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)

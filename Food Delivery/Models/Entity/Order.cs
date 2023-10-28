@@ -7,15 +7,15 @@ public class Order
 {
     public Guid Id { get; set; }
 
-    [Required] public DateTime DeliveryTime { get; set; }
+    public DateTime DeliveryTime { get; set; }
 
-    [Required] public DateTime OrderTime { get; set; }
+    public DateTime OrderTime { get; set; }
 
-    [Required] public string Status { get; set; }
+    public string Status { get; set; }
 
-    [Required] public double Price { get; set; }
+    public double Price { get; set; }
 
-    [Required] [MinLength(1)] public string Address { get; set; }
+    public Guid Address { get; set; }
 
     [Required] public Guid UserId { get; set; }
 
