@@ -61,10 +61,23 @@ public class UsersController : ControllerBase
     [Authorize(Policy = "ValidateToken")]
     [Route("profile")]
     [SwaggerOperation(Summary = "Get user profile")]
-    public async Task<UserDto> GetUserProfile()
+    public async Task<IActionResult> GetUserProfile()
     {
-        return await _usersService.GetUserProfile(
-            Guid.Parse(User.Identity.Name));
+        try
+        {
+            return Ok(await _usersService.GetUserProfile(
+                Guid.Parse(User.Identity.Name)));
+        }
+
+        catch (AuthException e)
+        {
+            return Unauthorized(new StatusResponse { Message = e.Message });
+        }
+
+        catch (Exception e)
+        {
+            return BadRequest(new StatusResponse { Message = e.Message });
+        }
     }
 
     [HttpPut]

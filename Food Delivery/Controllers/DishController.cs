@@ -59,6 +59,11 @@ public class DishController : ControllerBase
             return Ok(await _dishService.CheckDishRating(id, Guid.Parse(User.Identity.Name)));
         }
 
+        catch (AuthException e)
+        {
+            return Unauthorized(new StatusResponse { Message = e.Message });
+        }
+
         catch (Exception e)
         {
             return BadRequest(new StatusResponse { Message = e.Message });
@@ -75,6 +80,11 @@ public class DishController : ControllerBase
         try
         {
             await _dishService.SetDishRating(id, rating, Guid.Parse(User.Identity.Name));
+        }
+
+        catch (AuthException e)
+        {
+            Unauthorized(new StatusResponse { Message = e.Message });
         }
 
         catch (Exception e)
