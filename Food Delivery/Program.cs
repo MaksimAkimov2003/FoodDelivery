@@ -1,13 +1,88 @@
+using System.Text.Json.Serialization;
+using Food_Delivery.Common;
+using Food_Delivery.Common.db;
+using Food_Delivery.Services;
+using Food_Delivery.Services.Basket;
+using Food_Delivery.Services.Dish;
+using Food_Delivery.Services.Order;
+using Food_Delivery.Services.Users;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Quartz;
+using Serilog;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Services.AddControllers().AddJsonOptions(opts =>
+{
+    var enumConverter = new JsonStringEnumConverter();
+    opts.JsonSerializerOptions.Converters.Add(enumConverter);
+});
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var address = builder.Configuration.GetConnectionString("DefaultConnection");
+var mainConnection = builder.Configuration.GetConnectionString("WebConnection");
+builder.Services.AddDbContext<AddressDbContext>(options => options.UseNpgsql(address));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(mainConnection));
+builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IUsersService, UsersService>();
+builder.Services.AddScoped<IDishService, DishService>();
+builder.Services.AddScoped<IBasketService, BasketService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+
+var logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .CreateLogger();
+builder.Logging.ClearProviders();
+builder.Logging.AddSerilog(logger);
+
+builder.Services.AddSingleton<IAuthorizationHandler, ValidateTokenRequirementHandler>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        "ValidateToken",
+        policy => policy.Requirements.Add(new ValidateTokenRequirement()));
+});
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = JwtConfigurations.Issuer,
+            ValidateAudience = true,
+            ValidAudience = JwtConfigurations.Audience,
+            ValidateLifetime = true,
+            IssuerSigningKey = JwtConfigurations.GetSymmetricSecurityKey(),
+            ValidateIssuerSigningKey = true,
+        };
+    });
+builder.Services.AddQuartz(q =>
+{
+    q.UseMicrosoftDependencyInjectionJobFactory();
+    var jobKey = new JobKey("DeleteInvalidTokensJob");
+    q.AddJob<DeleteInvalidTokensJob>(opts => opts.WithIdentity(jobKey));
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("DeleteInvalidTokensJob-trigger")
+        .WithCronSchedule("0 0 0 ? * *")
+    );
+});
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
 var app = builder.Build();
+
+using var serviceScope = app.Services.CreateScope();
+var context = serviceScope.ServiceProvider.GetService<AddressDbContext>();
+context?.Database.Migrate();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
