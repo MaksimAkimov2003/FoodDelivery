@@ -26,10 +26,7 @@ public class ValidateTokenRequirementHandler : AuthorizationHandler<ValidateToke
             string? authorizationString = _httpContextAccessor.HttpContext.Request.Headers[HeaderNames.Authorization];
             if (authorizationString == null)
             {
-                var ex = new Exception();
-                ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                    "Access token not found"
-                );
+                var ex = new AuthException("Access token not found");
                 throw ex;
             }
 
@@ -45,10 +42,7 @@ public class ValidateTokenRequirementHandler : AuthorizationHandler<ValidateToke
 
             if (tokenEntity != null)
             {
-                var ex = new Exception();
-                ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                    "Not authorized"
-                );
+                var ex = new AuthException("Not authorized");
                 throw ex;
             }
 
@@ -56,10 +50,7 @@ public class ValidateTokenRequirementHandler : AuthorizationHandler<ValidateToke
         }
         else
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status400BadRequest.ToString(),
-                "Bad request"
-            );
+            var ex = new Exception("Bad request");
             throw ex;
         }
     }
@@ -72,10 +63,7 @@ public class ValidateTokenRequirementHandler : AuthorizationHandler<ValidateToke
 
         if (matches.Count <= 0)
         {
-            var ex = new Exception();
-            ex.Data.Add(StatusCodes.Status401Unauthorized.ToString(),
-                "Not authorized"
-            );
+            var ex = new AuthException("Not authorized");
             throw ex;
         }
 
